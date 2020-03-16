@@ -1,0 +1,151 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &181334154774935376
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 181334154774935374}
+  - component: {fileID: 181334154774935375}
+  m_Layer: 0
+  m_Name: MazeManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &181334154774935374
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 181334154774935376}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.69074416, y: 1.1756735, z: -0.2180103}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 0
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &181334154774935375
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 181334154774935376}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e5cef84e4fdf1d4f81754855bb64d77, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  mazeDimension: 1
+  useSeedValue: 0
+  seedValue: -202288544
+  showDimensionsGizmo: 0
+  dimensionsGizmoColour: {r: 0, g: 1, b: 0, a: 1}
+  mazeWidth: 21
+  mazeLength: 21
+  mazePosition: {x: 0, y: 0, z: 0}
+  makeBraidMaze: 0
+  makeFloorExit: 0
+  makeStart: 0
+  makeUniqueTiles: 0
+  uniqueTiles:
+  - uniqueTileName: Water
+    tileVariations:
+    - {fileID: 1853267419699130, guid: 12aaa730e87020449aadb0efa481bb21, type: 3}
+    placement: 2
+  exitType: 1
+  startType: 0
+  makeRooms: 0
+  numberOfRooms: 0
+  roomPlacementAttempts: 0
+  rooms: []
+  mazeTileWidthAndLength: 1
+  numberOfWallPieces: 1
+  outsideWallDeleteMode: 1
+  deleteOutsideWalls: 0
+  outsideWallPiecesToDelete: 2
+  numberOfCornerWallPieces: 1
+  numberOfEndWallPieces: 1
+  differentCorners: 0
+  differentEnds: 0
+  numberOfFloorPieces: 1
+  numberOfExitPieces: 1
+  numberOfStartPieces: 1
+  exitPieces:
+  - {fileID: 0}
+  startPieces:
+  - {fileID: 0}
+  addDetails: 0
+  wallDetails:
+  - detailName: Lit_Torch
+    detailPrefab: {fileID: 1028959286373798, guid: e748fc258df1e6345b46c28536df413b,
+      type: 3}
+    thickness: 0
+    height: 0.3
+    width: 0.5
+    minHeight: 0.71
+    maxHeight: 0.85
+    minHorizontalOffset: 0.25
+    maxHorizontalOffset: 0.25
+    frequency: 0.106
+  otherDetails: []
+  mazeName: DefaultName
+  allowEditorUndo: 0
+  defaultWallHeight: 1
+  defaultFloorThickness: 1
+  wallPieces:
+  - wallPrefab: {fileID: 1972576606893996, guid: ff3d32d8007f2e24595b8801e30989a4,
+      type: 3}
+    wallHeight: 1
+  cornerWallPieces:
+  - wallPrefab: {fileID: 1543585101569546, guid: 8e12d30f967daab4c916c04b4ef3d530,
+      type: 3}
+    wallHeight: 0.5
+  endWallPieces:
+  - wallPrefab: {fileID: 1989060081637774, guid: 4d7e2901ecc647c40a8619437d24d968,
+      type: 3}
+    wallHeight: 0.5
+  floorPieces:
+  - floorPrefab: {fileID: 1994254046939066, guid: 2b99fe8d8c6b3664fb1f1884d544c62b,
+      type: 3}
+    floorThickness: 1
+  defaultWallZPlane: 0
+  floorZPlane: 0
+  floorPieces2D:
+  - {fileID: 1994254046939066, guid: 2b99fe8d8c6b3664fb1f1884d544c62b, type: 3}
+  wallPieces2D:
+  - wallPrefab: {fileID: 1972576606893996, guid: ff3d32d8007f2e24595b8801e30989a4,
+      type: 3}
+    wallZPlane: 0.5
+  cornerWallPieces2D:
+  - wallPrefab: {fileID: 0}
+    wallZPlane: 0
+  endWallPieces2D:
+  - wallPrefab: {fileID: 0}
+    wallZPlane: 0
+  twoDimensionalDetails:
+  - detailName: 
+    detailPrefab: {fileID: 0}
+    height: 0
+    width: 0
+    zPlane: 0
+    minXOffset: 0
+    maxXOffset: 0
+    minYOffset: 0
+    maxYOffset: 0
+    frequency: 0
+  theMaze: {fileID: 0}
+  showFloorPieces: 0
+  showExitPieces: 1
+  showStartPieces: 0
+  showWallPieces: 0
+  showCornerWallPieces: 0
+  showEndWallPieces: 0
+  showDetails: 0
