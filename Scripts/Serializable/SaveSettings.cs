@@ -65,6 +65,10 @@ namespace ProjectMaze
         {
             get { return _makeBraidMaze; }
         }
+        private float _braidFrequency;
+        public float braidFrequency {
+            get { return _braidFrequency; }
+        }
         private bool _deleteOutsideWalls;
         public bool DeleteOutsideWalls
         {
@@ -117,7 +121,7 @@ namespace ProjectMaze
         }
 
         public MazeSettings(string mazeName, GenMaze.MazeDimension mazeDimension, int seedValue, int mazeWidth, int mazeLength, Vector3 mazePosition, float mazeTileWidthAndLength,
-            float defaultWallHeight, float defaultFloorThickness, float wallZPlane, float floorZPlane, bool makeBraidMaze, bool makeFloorExit, GenMaze.FloorExitType exitType, 
+            float defaultWallHeight, float defaultFloorThickness, float wallZPlane, float floorZPlane, bool makeBraidMaze, float braidFrequency, bool makeFloorExit, GenMaze.FloorExitType exitType, 
             bool deleteOutsideWalls, int outsideWallPiecesToDelete, GenMaze.OutsideWallDeleteMode outsideWallDeleteMode, bool makeRooms, int numberOfRooms, int roomPlacementAttempts, bool differentCorners, bool differentEnds)
         {
             _mazeName = mazeName;
@@ -132,6 +136,7 @@ namespace ProjectMaze
             _wallZPlane = wallZPlane;
             _floorZPlane = floorZPlane;
             _makeBraidMaze = makeBraidMaze;
+            _braidFrequency = braidFrequency;
             _makeFloorExit = makeFloorExit;
             _exitType = exitType;
             _deleteOutsideWalls = deleteOutsideWalls;

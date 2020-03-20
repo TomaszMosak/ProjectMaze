@@ -8,7 +8,8 @@ namespace ProjectMaze
     {
         //this class has no special properties, it is just used to access a property drawer
         //Allows the user to see the properties without being able to mess with them
-        //Found on stackoverflow, this isn't my work.
+
+        //Found this trick on stackoverflow, this isn't my work.
     }
     public class MazeNode : MonoBehaviour
     {

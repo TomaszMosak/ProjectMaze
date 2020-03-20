@@ -3,12 +3,14 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
+using System.Linq;
 
 namespace ProjectMaze
 {
     [ExecuteInEditMode]
     public class GenMaze : MonoBehaviour
     {
+
         #region Tooltips + Variables
         public enum MazeDimension
         {
@@ -24,7 +26,7 @@ namespace ProjectMaze
         [Tooltip("Shows the space the maze will take up in the inspector once generated as a cube gizmo.")]
         public bool showDimensionsGizmo;
         [Tooltip("Sets the colour of the gizmo that shows what the generated maze dimensions will be.")]
-        public Color dimensionsGizmoColour = Color.green;
+        public Color dimensionsGizmoColour = Color.green; //bright green is easily visible. This can be changed by the user later
         [Tooltip("How many units wide is the maze?")]
         [GreaterThanInt(0, false)]
         public int mazeWidth;
@@ -35,10 +37,13 @@ namespace ProjectMaze
         public Vector3 mazePosition;
         [Tooltip("If checked, dead ends will be deleted in order to turn the maze into a braid maze (there is more than one path to any point in the maze).")]
         public bool makeBraidMaze;
+        [Tooltip("Scale to determine how braid the maze will be \n1 = 100% fully braid. \n0 = Not braid.")]
+        [Range(0f, 1f)]
+        public float braidFrequency = 1f; //fully braid to begin with unless the user specifies otherwise
         [Tooltip("If checked, a floor tile will be removed or replaced for the exit.")]
         public bool makeFloorExit;
         [Tooltip("If checked, a floor tile will be removed or replaced for the start.")]
-        public bool makeStart;
+        public bool makeFloorStart;
         [Tooltip("If checked, any specified unique tiles will be added to the maze.")]
         public bool makeUniqueTiles;
         [Tooltip("Each of these unique tiles will be placed somewhere throughout the maze.")]
@@ -62,42 +67,45 @@ namespace ProjectMaze
         public int roomPlacementAttempts;
         [Tooltip("An array of the potential rooms that can be placed.")]
         public RoomPrefab[] rooms = new RoomPrefab[0];
-        [Tooltip("The width and length of all wall pieces, floor pieces, and other tiles in the maze. Mazes without square tiles look bad, so I got rid of those options to simplify the controls.")]
+        [Tooltip("The width and length of all wall pieces, floor pieces, and other tiles in the maze. Mazes without square tiles look bad, so I got rid of those options to simplify for prototype purpose.")]
         [GreaterThanFloat(0f, false)]
         public float mazeTileWidthAndLength;
-        [Tooltip("The number of unique normal wall piece variations in your maze. Press the plus/minus buttons to adjust.")]
+        [Tooltip("The number of unique normal wall piece variations in your maze.\nPress the plus/minus buttons to adjust.")]
         public int numberOfWallPieces = 1;
         public enum OutsideWallDeleteMode
         {
             random,
             opposite,
-            symmetric
+            symmetric,
+            classic,
+            elite
+
         }
         [Tooltip("The manner in which to delete outer walls. Random is random, opposite deletes pieces in pairs on opposite sides. Symmetric deletes pieces in pairs on opposite sides in symmetric locations.")]
         public OutsideWallDeleteMode outsideWallDeleteMode = OutsideWallDeleteMode.random;
         public bool deleteOutsideWalls = false;
         [Tooltip("The number of wall pieces around the outside edge to delete. Useful for entrances and exits.")]
         public int outsideWallPiecesToDelete = 0;
-        [Tooltip("The number of unique corner wall piece variations in your maze. Press the plus/minus buttons to adjust.")]
+        [Tooltip("The number of unique corner wall piece variations in your maze.\nPress the plus/minus buttons to adjust.")]
         public int numberOfCornerWallPieces = 1;
-        [Tooltip("The number of unique end wall piece variations in your maze. Press the plus/minus buttons to adjust.")]
+        [Tooltip("The number of unique end wall piece variations in your maze.\nPress the plus/minus buttons to adjust.")]
         public int numberOfEndWallPieces = 1;
         [Tooltip("Use a different set of pieces to place in corners.")]
         public bool differentCorners;
         [Tooltip("Use a different set of pieces to place at the ends of walls.")]
         public bool differentEnds;
-        [Tooltip("The number of unique floor pieces in your maze. Press the plus/minus buttons to adjust.")]
+        [Tooltip("The number of unique floor pieces in your maze.\nPress the plus/minus buttons to adjust.")]
         public int numberOfFloorPieces = 1;
-        [Tooltip("The number of possible unique exits that could be instantiated in your maze. Press the plus/minus buttons to adjust.")]
+        [Tooltip("The number of possible unique exits that could be instantiated in your maze.\nPress the plus/minus buttons to adjust.")]
         public int numberOfExitPieces = 1;
-        [Tooltip("The number of possible unique starts that could be instantiated in your maze. Press the plus/minus buttons to adjust.")]
+        [Tooltip("The number of possible unique starts that could be instantiated in your maze.\nPress the plus/minus buttons to adjust.")]
         public int numberOfStartPieces = 1;
         [Tooltip("What can possibly be placed at the exit of the maze. If you're generating an exit and leave this null, an empty tile will be left here as a sort of floor exit. Your imagination is the limit - triggers, an elevator, whatever you can fit into a prefab that will take up the same space as your other tiles will do the trick.")]
         public GameObject[] exitPieces = new GameObject[1];
         [Tooltip("What can possibly be placed at the start of the maze. If you're generating an start and leave this null, an empty tile will be left here. Your imagination is the limit - triggers, an elevator, whatever you can fit into a prefab that will take up the same space as your other tiles will do the trick.")]
         public GameObject[] startPieces = new GameObject[1];
         [Tooltip("If checked, you will be able to populate your maze with details.")]
-        public bool addDetails = false; 
+        public bool addDetails = false;
         [Tooltip("All of the details to be placed along the walls (randomly distributed).")]
         public WallDetail[] wallDetails = new WallDetail[1];
         [Tooltip("All of the details to be placed throughout the maze (randomly distributed and rotated around the y-axis).")]
@@ -174,7 +182,7 @@ namespace ProjectMaze
         public bool showDetails = false;
         #endregion
 
-        #region Gizmo
+        #region Gizmo - Outline box
         void OnDrawGizmosSelected() {
             if (showDimensionsGizmo) {
                 float offset = 0.1f;
@@ -284,6 +292,7 @@ namespace ProjectMaze
                 if (outsideWallPiecesToDelete > totalOutsideWalls) {
                     outsideWallPiecesToDelete = totalOutsideWalls;
                 }
+                //has to delete a multiple of 2 walls
                 if (outsideWallDeleteMode == OutsideWallDeleteMode.opposite || outsideWallDeleteMode == OutsideWallDeleteMode.symmetric) {
                     if (outsideWallPiecesToDelete % 2 == 1) {
                         outsideWallPiecesToDelete++;
@@ -444,10 +453,10 @@ namespace ProjectMaze
             }
         }
 
-    
+
         #endregion
 
-        #region Generate Maze - Single Frame -- TODO Partial BRAID
+        #region Generate Maze - Single Frame
         /// <summary>
         /// Generates a new maze
         /// </summary>
@@ -458,7 +467,7 @@ namespace ProjectMaze
             int rowTracker;
             int columnTracker;
             int indexTracker;
-            bool keepGoing;
+            bool keepGoing; //used to indicate completeness of each function
 
             StartMazeMap(); //starts the maze map at a blank slate and deletes current one if there is one existing
 
@@ -468,19 +477,18 @@ namespace ProjectMaze
             if (!useSeedValue) {
                 seedValue = Random.Range(int.MinValue, int.MaxValue);
             }
-            Random.InitState(seedValue);
+            Random.InitState(seedValue); //this is what keeps the generation the same if we use a set seed value
 
             keepGoing = true; //a bool that creates a gate for the following loop to exit  
             do {
-                keepGoing = GetNextTile(latestMazeMap, ref currentTileCoordinates); //uses RNG to find a new tile and generate the maze one tile at a time, when finished, keepGoing will be false
+                keepGoing = GetNextTile(latestMazeMap, ref currentTileCoordinates); //generates maze, single tile at a time using random generator and sets every tile a state for all post generation functionality
             } while (keepGoing);
 
-
-            // Add Partially braid function (threshhold function between 0 and 1 to run the EraseSomeDeadEnds function) ------------------- TODO: Implement
-            if (makeBraidMaze) {
+            if (makeBraidMaze && braidFrequency > 0f) {
+                keepGoing = true;
                 rowTracker = 0;
                 columnTracker = 0;
-                keepGoing = true;
+
                 do {
                     keepGoing = EraseSomeDeadEnds(latestMazeMap, 10000, ref rowTracker, ref columnTracker); //erases dead ends
                 } while (keepGoing);
@@ -495,7 +503,9 @@ namespace ProjectMaze
             }
             theMaze = new GameObject(mazeName, typeof(Maze)); //either we've checked for duplicate names here or in editor code, so now is a safe time to create the new GameObject
             theMaze.transform.position = mazePosition; //since we're generating a new maze, better move it to the right spot
+            //MAZE IS DONE
 
+            //Post Generation below
             if (makeRooms && rooms.Length > 0) {
                 for (int counter = 0; counter < numberOfRooms; counter++) {
                     bool validAvailableChoice = false;
@@ -529,7 +539,7 @@ namespace ProjectMaze
                 SetStartOrFinish(latestMazeMap, exitType, false); //sets an exit point in the maze
             }
 
-            if (makeStart) {
+            if (makeFloorStart) {
                 SetStartOrFinish(latestMazeMap, startType, true); //sets a start point in the maze
             }
 
@@ -605,11 +615,13 @@ namespace ProjectMaze
         /// <summary>
         /// Clears the current map and starts a new one (editor generation only)
         /// </summary>
-        private void StartMazeMap() {
-            latestMazeMap = new MazeMap();
-            //sets the width and height properties of the maze map to make sure they're current
-            latestMazeMap.mazeWidth = mazeWidth;
-            latestMazeMap.mazeLength = mazeLength;
+        public void StartMazeMap() {
+
+            latestMazeMap = new MazeMap {
+                //sets the width and height properties of the maze map to make sure they're current
+                mazeWidth = mazeWidth,
+                mazeLength = mazeLength
+            };
             latestMazeMap.map = new MazeMap.TileState[(latestMazeMap.mazeWidth) * (latestMazeMap.mazeLength)]; //creates a new map
             for (int row = 0; row < latestMazeMap.mazeLength; row++) {
                 for (int column = 0; column < latestMazeMap.mazeWidth; column++) {
@@ -676,7 +688,7 @@ namespace ProjectMaze
                         foundValidTile = true;
                         mazeMapToCheck.map[((int)(currentTileCoordinates.y) * mazeMapToCheck.mazeWidth) + (int)(currentTileCoordinates.x)] = MazeMap.TileState.visitedOnce; //flags the current tile as visited
                         mazeMapToCheck.map[((int)(currentTileCoordinates.y + move.y / 2) * mazeMapToCheck.mazeWidth) + (int)(currentTileCoordinates.x + move.x / 2)] = MazeMap.TileState.brokenWall; //flags the wall you moved through as broken down
-                        currentTileCoordinates += move; //moves the "cursor" to the new spot
+                        currentTileCoordinates += move; //moves the "pointer" to the new spot
                     }
 
                     //if we didn't find any unexplored tiles in any direction, we can start the backtracking process
@@ -685,7 +697,7 @@ namespace ProjectMaze
                         directionIndex = -1;
                     }
                 }
-                //the second round of checks just needs to find a tile that's only been visited once, or a broken wall (this is backtracking)
+                //the second round of checks just needs to find a tile that's only been visited once, or a broken wall (backtracking)
                 else {
                     if (testResults == MazeMap.TileState.visitedOnce || testResults == MazeMap.TileState.brokenWall) {
                         foundValidTile = true;
@@ -699,7 +711,7 @@ namespace ProjectMaze
 
                     //if we've checked every direction and there aren't any valid tiles, the generation process has finished
                     if (directionIndex == testDirections.Count - 1 && !foundValidTile) {
-                        mazeMapToCheck.map[((int)(currentTileCoordinates.y) * mazeMapToCheck.mazeWidth) + (int)(currentTileCoordinates.x)] = MazeMap.TileState.deadEnd; //marks our dead ends in case we want to make a braid maze
+                        mazeMapToCheck.map[((int)(currentTileCoordinates.y) * mazeMapToCheck.mazeWidth) + (int)(currentTileCoordinates.x)] = MazeMap.TileState.deadEnd; //mark as dead end for braiding as well
                         keepGoing = false;
                     }
                 }
@@ -1044,6 +1056,7 @@ namespace ProjectMaze
                 for (; column < mapToModify.mazeWidth && (calculationCounter < calculationsPerFrame || calculationsPerFrame < 1); column++) {
                     if (mapToModify.map[(row * mapToModify.mazeWidth) + column] == MazeMap.TileState.deadEnd) {
                         Vector2 currentTileCoordinates = new Vector2(column, row); //sets the current tile variable to the current tile (the dead end that's been found)
+
                         TestDirection testDirection = (TestDirection)1; //start testing at the lowest value (1 is left)
                         bool foundIt = false; //used to indicate when the wall that needs to be broken down has been found
                         while ((int)testDirection <= 4 && !foundIt) {
@@ -1064,13 +1077,14 @@ namespace ProjectMaze
                                     move = new Vector2(0, -1);
                                     break;
                             }
-                            wallResults = CheckTile(move, mapToModify, currentTileCoordinates);
-                            floorResults = CheckTile(move * 2, mapToModify, currentTileCoordinates);
+                            wallResults = CheckTile(move, mapToModify, currentTileCoordinates); //checks if there is a wall in that direction
+                            floorResults = CheckTile(move * 2, mapToModify, currentTileCoordinates); //checks if the tile after is a floor (ensures passage if we break the wall)
 
-                            //if the tile we found is a 
                             if (IsFloor(floorResults) && IsWall(wallResults)) {
-                                foundIt = true;
-                                mapToModify.map[((int)(currentTileCoordinates.y + move.y) * mapToModify.mazeWidth) + (int)(currentTileCoordinates.x + move.x)] = MazeMap.TileState.brokenWall;
+                                if (Random.Range(0f, 1f) <= braidFrequency) {//random picker determines how braid the maze will be
+                                    foundIt = true;
+                                    mapToModify.map[((int)(currentTileCoordinates.y + move.y) * mapToModify.mazeWidth) + (int)(currentTileCoordinates.x + move.x)] = MazeMap.TileState.brokenWall;
+                                }
                             }
                             testDirection++;
                         }
@@ -1092,7 +1106,7 @@ namespace ProjectMaze
         }
         #endregion
 
-        #region Delete OuterWalls
+        #region Delete OuterWalls -- TODO HERE ((START/END POINTER IN OUTER WALL))
         /// <summary>
         /// Erases pieces of the outer wall. Presumably to be used as entrances and exits.
         /// </summary>
@@ -1105,10 +1119,10 @@ namespace ProjectMaze
             }
             // randomly permute possibilities
             for (int index = 0; index < randomColBottom.Count; index++) {
-                int rnGesus = Random.Range(0, randomColBottom.Count);
+                int randomGenerator = Random.Range(0, randomColBottom.Count);
                 int temp = randomColBottom[index];
-                randomColBottom[index] = randomColBottom[rnGesus];
-                randomColBottom[rnGesus] = temp;
+                randomColBottom[index] = randomColBottom[randomGenerator];
+                randomColBottom[randomGenerator] = temp;
             }
 
             // all of top except the top-right corner
@@ -1118,10 +1132,10 @@ namespace ProjectMaze
             }
             // randomly permute possibilities
             for (int index = 0; index < randomColTop.Count; index++) {
-                int rnGesus = Random.Range(0, randomColTop.Count);
+                int randomGenerator = Random.Range(0, randomColTop.Count);
                 int temp = randomColTop[index];
-                randomColTop[index] = randomColTop[rnGesus];
-                randomColTop[rnGesus] = temp;
+                randomColTop[index] = randomColTop[randomGenerator];
+                randomColTop[randomGenerator] = temp;
             }
 
             // all of left except the top-left corner
@@ -1131,10 +1145,10 @@ namespace ProjectMaze
             }
             // randomly permute possibilities
             for (int index = 0; index < randomRowLeft.Count; index++) {
-                int rnGesus = Random.Range(0, randomRowLeft.Count);
+                int randomGenerator = Random.Range(0, randomRowLeft.Count);
                 int temp = randomRowLeft[index];
-                randomRowLeft[index] = randomRowLeft[rnGesus];
-                randomRowLeft[rnGesus] = temp;
+                randomRowLeft[index] = randomRowLeft[randomGenerator];
+                randomRowLeft[randomGenerator] = temp;
             }
 
             // all of right except the bottom-right corner
@@ -1144,29 +1158,36 @@ namespace ProjectMaze
             }
             // randomly permute possibilities
             for (int index = 0; index < randomRowRight.Count; index++) {
-                int rnGesus = Random.Range(0, randomRowRight.Count);
+                int randomGenerator = Random.Range(0, randomRowRight.Count);
                 int temp = randomRowRight[index];
-                randomRowRight[index] = randomRowRight[rnGesus];
-                randomRowRight[rnGesus] = temp;
+                randomRowRight[index] = randomRowRight[randomGenerator];
+                randomRowRight[randomGenerator] = temp;
             }
 
             switch (deleteMode) {
                 case OutsideWallDeleteMode.random:
+
                     for (int count = 0; count < numberToDelete; count++) {
                         // 0 is left wall
                         // 1 is top wall
                         // 2 is right wall
                         // 3 is bottom wall
-                        int rnGesus = Random.Range(0, 4);
-                        switch (rnGesus) {
+                        int randomGenerator = Random.Range(0, 4); //selects random side
+                        switch (randomGenerator) {
                             case 0:
                                 if (randomRowLeft.Count > 0) {
                                     int leftRow = randomRowLeft[randomRowLeft.Count - 1];
+
+                                    //Ensures that if this side is selected again that the deleted walls aren't next to each other
                                     randomRowLeft.RemoveAt(randomRowLeft.Count - 1);
-                                    mapToModify.map[(leftRow * mapToModify.mazeWidth) + 0] = MazeMap.TileState.brokenWall;
+                                    randomRowLeft.Remove(leftRow + 1);
+                                    randomRowLeft.Remove(leftRow - 1);
+
                                     // make sure this space is accessible
                                     if (IsWall(mapToModify.map[(leftRow * mapToModify.mazeWidth) + 1])) {
-                                        mapToModify.map[(leftRow * mapToModify.mazeWidth) + 1] = MazeMap.TileState.brokenWall;
+                                        mapToModify.map[((leftRow + 1) * mapToModify.mazeWidth) + 0] = MazeMap.TileState.brokenWall;
+                                    } else {
+                                        mapToModify.map[(leftRow * mapToModify.mazeWidth) + 0] = MazeMap.TileState.brokenWall;
                                     }
                                 } else {
                                     count--;
@@ -1175,11 +1196,17 @@ namespace ProjectMaze
                             case 1:
                                 if (randomColTop.Count > 0) {
                                     int topCol = randomColTop[randomColTop.Count - 1];
+
+                                    //Ensures that if this side is selected again that the deleted walls aren't next to each other
                                     randomColTop.RemoveAt(randomColTop.Count - 1);
-                                    mapToModify.map[((mapToModify.mazeLength - 1) * mapToModify.mazeWidth) + topCol] = MazeMap.TileState.brokenWall;
-                                    // make sure this space is accessible
+                                    randomColTop.Remove(topCol + 1);
+                                    randomColTop.Remove(topCol - 1);
+
+                                    //make sure this space is accessible
                                     if (IsWall(mapToModify.map[((mapToModify.mazeLength - 2) * mapToModify.mazeWidth) + topCol])) {
-                                        mapToModify.map[((mapToModify.mazeLength - 2) * mapToModify.mazeWidth) + topCol] = MazeMap.TileState.brokenWall;
+                                        mapToModify.map[((mapToModify.mazeLength - 1) * mapToModify.mazeWidth) + (topCol + 1)] = MazeMap.TileState.brokenWall;
+                                    } else {
+                                        mapToModify.map[((mapToModify.mazeLength - 1) * mapToModify.mazeWidth) + topCol] = MazeMap.TileState.brokenWall;
                                     }
                                 } else {
                                     count--;
@@ -1188,11 +1215,16 @@ namespace ProjectMaze
                             case 2:
                                 if (randomRowRight.Count > 0) {
                                     int rightRow = randomRowRight[randomRowRight.Count - 1];
+
+                                    //Ensures that if this side is selected again that the deleted walls aren't next to each other
                                     randomRowRight.RemoveAt(randomRowRight.Count - 1);
-                                    mapToModify.map[(rightRow * mapToModify.mazeWidth) + mapToModify.mazeWidth - 1] = MazeMap.TileState.brokenWall;
+                                    randomRowRight.Remove(rightRow + 1);
+                                    randomRowRight.Remove(rightRow - 1);
                                     // make sure this space is accessible
                                     if (IsWall(mapToModify.map[(rightRow * mapToModify.mazeWidth) + mapToModify.mazeWidth - 2])) {
-                                        mapToModify.map[(rightRow * mapToModify.mazeWidth) + mapToModify.mazeWidth - 2] = MazeMap.TileState.brokenWall;
+                                        mapToModify.map[((rightRow - 1) * mapToModify.mazeWidth) + mapToModify.mazeWidth - 1] = MazeMap.TileState.brokenWall;
+                                    } else {
+                                        mapToModify.map[(rightRow * mapToModify.mazeWidth) + mapToModify.mazeWidth - 1] = MazeMap.TileState.brokenWall;
                                     }
                                 } else {
                                     count--;
@@ -1201,11 +1233,17 @@ namespace ProjectMaze
                             case 3:
                                 if (randomColBottom.Count > 0) {
                                     int bottomCol = randomColBottom[randomColBottom.Count - 1];
+
+                                    //Ensures that if this side is selected again that the deleted walls aren't next to each other
                                     randomColBottom.RemoveAt(randomColBottom.Count - 1);
-                                    mapToModify.map[(0 * mapToModify.mazeWidth) + bottomCol] = MazeMap.TileState.brokenWall;
+                                    randomColBottom.Remove(bottomCol + 1);
+                                    randomColBottom.Remove(bottomCol - 1);
+
                                     // make sure this space is accessible
                                     if (IsWall(mapToModify.map[(1 * mapToModify.mazeWidth) + bottomCol])) {
-                                        mapToModify.map[(1 * mapToModify.mazeWidth) + bottomCol] = MazeMap.TileState.brokenWall;
+                                        mapToModify.map[(0 * mapToModify.mazeWidth) + (bottomCol + 1)] = MazeMap.TileState.brokenWall;
+                                    } else {
+                                        mapToModify.map[(0 * mapToModify.mazeWidth) + bottomCol] = MazeMap.TileState.brokenWall;
                                     }
                                 } else {
                                     count--;
@@ -1216,8 +1254,8 @@ namespace ProjectMaze
                     break;
                 case OutsideWallDeleteMode.opposite:
                     for (int count = 0; count < numberToDelete; count += 2) {
-                        int rnGesus = Random.Range(0, 2);
-                        switch (rnGesus) {
+                        int randomGenerator = Random.Range(0, 2);
+                        switch (randomGenerator) {
                             // break random, opposite walls on the left and right
                             case 0:
                                 if (randomRowRight.Count > 0 && randomRowLeft.Count > 0) {
@@ -1281,8 +1319,8 @@ namespace ProjectMaze
                     for (int count = 0; count < numberToDelete; count += 2) {
                         // 0 is left/right
                         // 1 is top/bottom
-                        int rnGesus = Random.Range(0, 2);
-                        switch (rnGesus) {
+                        int randomGenerator = Random.Range(0, 2);
+                        switch (randomGenerator) {
                             // break symmetrically opposite walls on the left and right
                             case 0:
                                 if (randomRowLeft.Count > 0 && randomRowRight.Count > 0) {
@@ -1342,7 +1380,168 @@ namespace ProjectMaze
                         }
                     }
                     break;
+
+                    //TODO ------------ IF ENOUGH TIME DO A SOLVE TO ENSURE THAT PATH BETWEEN IS SHORT
+                case OutsideWallDeleteMode.elite:
+                    // 0 is left wall
+                    // 1 is top wall
+                    // 2 is right wall
+                    // 3 is bottom wall
+                    bool attempt = false;
+                    bool firstPass = false;
+                    int firstWall = -1;
+                    int randomGen = Random.Range(0, 1); //selects random side
+                        switch (randomGen) {
+                            case 0:
+                                    while (!attempt || randomRowLeft.Count > 0) {
+                                        //finds a wall and deletes it from the list
+                                        int leftRow = randomRowLeft[randomRowLeft.Count - 1];
+                                        randomRowLeft.RemoveAt(randomRowLeft.Count - 1);
+
+                                        // make sure this space is accessible
+                                        if (IsWall(mapToModify.map[(leftRow * mapToModify.mazeWidth) + 1])) {
+                                            leftRow++;
+                                        }
+
+                                        //we don't want walls right next to each other
+                                        randomColTop.Remove(leftRow + 1);
+                                        randomColTop.Remove(leftRow - 1);
+                                        
+                                        //ensure that there is a wall between the 2 points
+                                         if (firstWall != -1) {
+                                            attempt = eliteHelper(mapToModify, firstWall, leftRow);
+                                            Debug.Log(attempt);
+                                            if (attempt == true) {
+                                                mapToModify.map[(leftRow * mapToModify.mazeWidth) + 0] = MazeMap.TileState.brokenWall;
+                                                break; //we can break as we've got our 2 walls destroyed
+                                            }
+                                        }
+                                         //on first wall we can just delete it
+                                        if (!firstPass) {
+                                            mapToModify.map[(leftRow * mapToModify.mazeWidth) + 0] = MazeMap.TileState.brokenWall;
+                                            firstPass = true;
+                                            firstWall = leftRow;
+                                        }
+                                    }
+                                break;
+                            case 1:
+                                 while (!attempt || randomColTop.Count > 0) {
+                                    int topCol = randomColTop[randomColTop.Count - 1];
+                                    //Ensures that if this side is selected again that the deleted walls aren't next to each other
+                                    randomColTop.RemoveAt(randomColTop.Count - 1);
+
+                                    //make sure this space is accessible
+                                    if (IsWall(mapToModify.map[((mapToModify.mazeLength - 2) * mapToModify.mazeWidth) + topCol])) {
+                                         topCol++;
+                                    }
+                                    randomColTop.Remove(topCol + 1);
+                                    randomColTop.Remove(topCol - 1);
+
+                                    if (firstWall != -1) {
+                                    attempt = eliteHelper(mapToModify, firstWall, topCol);
+                                    Debug.Log(attempt);
+                                        if (attempt == true) {
+                                            mapToModify.map[((mapToModify.mazeLength - 1) * mapToModify.mazeWidth) + topCol] = MazeMap.TileState.brokenWall;
+                                            break; //we can break as we've got our 2 walls destroyed
+                                        }
+                                    }
+                                    if (!firstPass) {
+                                        mapToModify.map[((mapToModify.mazeLength - 1) * mapToModify.mazeWidth) + topCol] = MazeMap.TileState.brokenWall;
+                                        firstPass = true;
+                                        firstWall = topCol;
+                                    }
+
+                                 } 
+                           break;
+                        case 2:
+                                if (randomRowRight.Count > 0) {
+                                    int rightRow = randomRowRight[randomRowRight.Count - 1];
+                                    firstWall = rightRow;
+                                    //Ensures that if this side is selected again that the deleted walls aren't next to each other
+                                    randomRowRight.RemoveAt(randomRowRight.Count - 1);
+                                    randomRowRight.Remove(rightRow + 1);
+                                    randomRowRight.Remove(rightRow - 1);
+
+                                    // make sure this space is accessible
+                                    if (IsWall(mapToModify.map[(rightRow * mapToModify.mazeWidth) + mapToModify.mazeWidth - 2])) {
+                                        mapToModify.map[((rightRow - 1) * mapToModify.mazeWidth) + mapToModify.mazeWidth - 1] = MazeMap.TileState.brokenWall;
+                                    } else {
+                                        mapToModify.map[(rightRow * mapToModify.mazeWidth) + mapToModify.mazeWidth - 1] = MazeMap.TileState.brokenWall;
+                                    }
+                                } else {
+                             
+                                }
+                                break;
+                            case 3:
+                                if (randomColBottom.Count > 0) {
+                                    int bottomCol = randomColBottom[randomColBottom.Count - 1];
+                                    firstWall = bottomCol;
+                                    //Ensures that if this side is selected again that the deleted walls aren't next to each other
+                                    randomColBottom.RemoveAt(randomColBottom.Count - 1);
+                                    randomColBottom.Remove(bottomCol + 1);
+                                    randomColBottom.Remove(bottomCol - 1);
+
+                                    // make sure this space is accessible
+                                    if (IsWall(mapToModify.map[(1 * mapToModify.mazeWidth) + bottomCol])) {
+                                        mapToModify.map[(0 * mapToModify.mazeWidth) + (bottomCol + 1)] = MazeMap.TileState.brokenWall;
+                                    } else {
+                                        mapToModify.map[(0 * mapToModify.mazeWidth) + bottomCol] = MazeMap.TileState.brokenWall;
+                                    }
+                                } else {
+                                  
+                                }
+                                break;
+                        }
+                    
+                    break;
+
+                //NON RANDOM CASE
+                case OutsideWallDeleteMode.classic:
+                    int rightSide = mapToModify.mazeWidth - 2;
+                    int leftSide = 1;
+                    mapToModify.map[((leftSide) * mapToModify.mazeWidth)] = MazeMap.TileState.brokenWall;
+                    mapToModify.map[(rightSide * mapToModify.mazeWidth) + mapToModify.mazeWidth - 1] = MazeMap.TileState.brokenWall;
+                    break;
+
+
             }
+        }
+        // FIX ------------------------------------------------------------------------------------------------------------------------------- ONLY WORKS FOR THE LEFT SIDE
+        /// <summary>
+        /// Ensures that there is a wall between the 2 entrances. Means that the user within the maze doesn't see the exit instantly
+        /// </summary>
+        /// <param name="mapToModify"></param>
+        /// <param name="first"></param>
+        /// <param name="second"></param>
+        /// <returns>True if there is a wall, false otherwise</returns>
+        private bool eliteHelper(MazeMap mapToModify, int first, int second) {
+            if (first < second) {
+                IEnumerable<int> numbers = Enumerable.Range(first, second);
+                Debug.Log(string.Format("Starting: {0} \nEnding: {1}", first, second));
+                foreach (var num in Enumerable.Range(first, (second - first) + 1)) {
+                    if (num > 0) {
+                        if (IsWall(mapToModify.map[(num * mapToModify.mazeWidth) + 1])) {
+                            return true;
+
+                        }
+                    } else {
+                        Debug.LogError(string.Format("Something went wrong at value: {0}\n using: {1}, {2}", num, first, second));
+                    }
+                }
+            } else {
+                IEnumerable<int> numbers = Enumerable.Range(second, first);
+                Debug.Log(string.Format("Starting: {0} \nEnding: {1}", second, first));
+                foreach (var num in Enumerable.Range(second, (first - second) + 1)) {
+                    if (num > 0) {
+                        if (IsWall(mapToModify.map[(num * mapToModify.mazeWidth) + 1])) {
+                            return true;
+                        }
+                    } else {
+                        Debug.LogError(string.Format("Something went wrong at value: {0}\n using: {1}, {2}", num, first, second));
+                    }
+                }
+            }
+            return false;
         }
         #endregion
 
@@ -1551,6 +1750,7 @@ namespace ProjectMaze
                 }
             }
 
+            //randomizer ((allows for same seed))
             for (int index = 0; index < possibleCoords.Count; index++) {
                 Vector2 temp = possibleCoords[index];
                 int randomIndex = Random.Range(0, possibleCoords.Count);
@@ -1647,7 +1847,7 @@ namespace ProjectMaze
                 for (; row < mapToModify.mazeLength && (instantiationCounter < instantiationsPerFrame || instantiationsPerFrame < 1); row++) {
                     for (; column < mapToModify.mazeWidth && (instantiationCounter < instantiationsPerFrame || instantiationsPerFrame < 1); column++) {
                         if (mapToModify.map[(row * mapToModify.mazeWidth) + column] == MazeMap.TileState.wall) {
-                            if (Random.Range(0f, 1f) <= wallDetails[detailIndex].frequency)//RNGesus determines if the object will be placed on this wall or not depending on your frequency value
+                            if (Random.Range(0f, 1f) <= wallDetails[detailIndex].frequency)//random picker determines if the object will be placed on this wall or not depending on your frequency value
                             {
                                 Vector2 currentTileCoordinates = new Vector2(column, row);
                                 TestDirection testDirection = (TestDirection)1;
@@ -1743,7 +1943,7 @@ namespace ProjectMaze
                         MazeMap.TileState testResults = CheckTile(Vector2.zero, mapToModify, currentTileCoordinates); //we're just checking the tile we're on
                         if (testResults != MazeMap.TileState.wall && testResults != MazeMap.TileState.finish && testResults != MazeMap.TileState.start && testResults != MazeMap.TileState.room) //if the tile isn't a wall, the finish square, or a room we can procede
                         {
-                            if (Random.Range(0f, 1f) <= otherObjects[detailIndex].frequency)//RNGesus determines if the object will be placed on this tile or not depending on your frequency value
+                            if (Random.Range(0f, 1f) <= otherObjects[detailIndex].frequency)//random picker determines if the object will be placed on this tile or not depending on your frequency value
                             {
                                 GameObject tempDetail = Instantiate(otherObjects[detailIndex].detailPrefab, new Vector3(column * tileWidthAndLength + Random.Range(otherObjects[detailIndex].minXOffset, otherObjects[detailIndex].maxXOffset), Random.Range(otherObjects[detailIndex].minHeight, otherObjects[detailIndex].maxHeight), row * mazeTileWidthAndLength + Random.Range(otherObjects[detailIndex].minZOffset, otherObjects[detailIndex].maxZOffset)) + mazeTransform.position, mazeTransform.rotation);
                                 tempDetail.transform.Rotate(transform.up, Random.Range(0f, 360f));
@@ -1797,7 +1997,7 @@ namespace ProjectMaze
                         //if (mapToModify.map[(row * mapToModify.mazeWidth) + column] != MazeMap.TileState.finish && mapToModify.map[(row * mapToModify.mazeWidth) + column] != MazeMap.TileState.wall)
                         if (testResults != MazeMap.TileState.wall && testResults != MazeMap.TileState.finish && testResults != MazeMap.TileState.start && testResults != MazeMap.TileState.room) //if the tile isn't a wall, the finish square, or a room, we can procede
                         {
-                            if (Random.Range(0f, 1f) <= twoDimensionalObjects[detailIndex].frequency)//RNGesus determines if the object will be placed on this tile or not depending on your frequency value
+                            if (Random.Range(0f, 1f) <= twoDimensionalObjects[detailIndex].frequency)//random picker determines if the object will be placed on this tile or not depending on your frequency value
                             {
                                 GameObject tempDetail = (GameObject)Instantiate(twoDimensionalObjects[detailIndex].detailPrefab, new Vector3(column * tileWidthAndLength + Random.Range(twoDimensionalObjects[detailIndex].minXOffset, twoDimensionalObjects[detailIndex].maxXOffset), row * mazeTileWidthAndLength + Random.Range(twoDimensionalObjects[detailIndex].minYOffset, twoDimensionalObjects[detailIndex].maxYOffset), twoDimensionalObjects[detailIndex].zPlane) + mazeTransform.position, mazeTransform.rotation);
                                 tempDetail.transform.Rotate(transform.up, Random.Range(0f, 360f));
@@ -1835,7 +2035,7 @@ namespace ProjectMaze
         /// <param name="savePath">The path with which to save the settings.</param>
         public void SaveGeneratorSettings(string savePath) {
             MazeSettings settings = new MazeSettings(mazeName, mazeDimension, seedValue, mazeWidth, mazeLength, mazePosition, mazeTileWidthAndLength,
-                                                     defaultWallHeight, defaultFloorThickness, defaultWallZPlane, floorZPlane, makeBraidMaze, makeFloorExit, exitType,
+                                                     defaultWallHeight, defaultFloorThickness, defaultWallZPlane, floorZPlane, makeBraidMaze, braidFrequency, makeFloorExit, exitType,
                                                      deleteOutsideWalls, outsideWallPiecesToDelete, outsideWallDeleteMode, makeRooms, numberOfRooms,
                                                      roomPlacementAttempts, differentCorners, differentEnds);
             try {
@@ -1871,6 +2071,7 @@ namespace ProjectMaze
                 defaultWallHeight = settings.DefaultWallHeight;
                 defaultFloorThickness = settings.DefaultFloorThickness;
                 makeBraidMaze = settings.MakeBraidMaze;
+                braidFrequency = settings.braidFrequency;
                 makeFloorExit = settings.MakeFloorExit;
                 exitType = settings.ExitType;
                 makeRooms = settings.MakeRooms;

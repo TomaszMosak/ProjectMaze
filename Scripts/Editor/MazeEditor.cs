@@ -287,7 +287,7 @@ namespace ProjectMaze
                 EditorGUILayout.EndVertical();
                 #endregion
 
-                #region Floor Exit Stuff
+                #region Floor Exit/Start Stuff
                 EditorGUILayout.BeginVertical("Box");
                 SerializedProperty makeFloorExitProperty = serializedObject.FindProperty("makeFloorExit");
                 GUIContent makeFloorExitContent = new GUIContent("Make Floor Exit?", makeFloorExitProperty.tooltip);
@@ -303,12 +303,10 @@ namespace ProjectMaze
                     DisplayGameObjectArrayFormatted(exitPiecesContent, showExitPiecesProperty, exitPiecesProperty, numberOfExitPiecesProperty);
                 }
                 EditorGUILayout.EndVertical();
-                #endregion
 
-                #region Floor Start Stuff
                 EditorGUILayout.BeginVertical("Box");
-                SerializedProperty makeFloorStartProperty = serializedObject.FindProperty("makeStart");
-                GUIContent makeFloorStartContent = new GUIContent("Make Start?", makeFloorExitProperty.tooltip);
+                SerializedProperty makeFloorStartProperty = serializedObject.FindProperty("makeFloorStart");
+                GUIContent makeFloorStartContent = new GUIContent("Make Floor Start?", makeFloorExitProperty.tooltip);
                 EditorGUILayout.PropertyField(makeFloorStartProperty, makeFloorStartContent);
                 if (makeFloorStartProperty.boolValue) {
                     EditorGUI.indentLevel++;
@@ -328,14 +326,19 @@ namespace ProjectMaze
                 SerializedProperty deleteOutsideWallsProperty = serializedObject.FindProperty("deleteOutsideWalls");
                 GUIContent deleteOutsideWallContent = new GUIContent("Delete Outside Wall Pieces?", deleteOutsideWallsProperty.tooltip);
                 EditorGUILayout.PropertyField(deleteOutsideWallsProperty, deleteOutsideWallContent);
-                if (deleteOutsideWallsProperty.boolValue) {
-                    EditorGUI.indentLevel++;
-                    EditorGUILayout.PropertyField(serializedObject.FindProperty("outsideWallDeleteMode"));
-                    EditorGUI.indentLevel--;
+                SerializedProperty wallEnum = serializedObject.FindProperty("outsideWallDeleteMode");
+            if (deleteOutsideWallsProperty.boolValue) {
+                EditorGUI.indentLevel++;
+                EditorGUILayout.PropertyField(wallEnum);
+                EditorGUI.indentLevel--;
+                if (wallEnum.intValue == (int)GenMaze.OutsideWallDeleteMode.classic || wallEnum.intValue == (int)GenMaze.OutsideWallDeleteMode.elite) {
+                    EditorGUILayout.HelpBox("This option will delete EXACTLY 2 wall Pieces", MessageType.Info, true);
+                } else {
                     SerializedProperty outsideWallPiecesToDeleteProperty = serializedObject.FindProperty("outsideWallPiecesToDelete");
                     GUIContent outsideWallPiecesToDeleteContent = new GUIContent("Number of Pieces to Delete", outsideWallPiecesToDeleteProperty.tooltip);
                     EditorGUILayout.PropertyField(outsideWallPiecesToDeleteProperty, outsideWallPiecesToDeleteContent);
                 }
+            }
                 EditorGUILayout.EndVertical();
                 #endregion
 
@@ -360,33 +363,37 @@ namespace ProjectMaze
                 GUIContent makeBraidMazeContent = new GUIContent("Make Braid Maze?");
                 SerializedProperty makeBraidMazeProperty = serializedObject.FindProperty("makeBraidMaze");
                 EditorGUILayout.PropertyField(makeBraidMazeProperty, makeBraidMazeContent);
+                
                 if (makeBraidMazeProperty.boolValue) {
-                    EditorGUILayout.HelpBox("This maze will have all dead ends removed.", MessageType.Info);
+                    SerializedProperty braidFrequency = serializedObject.FindProperty("braidFrequency");
+                    EditorGUILayout.PropertyField(braidFrequency);
+                    if (braidFrequency.floatValue == 1) {
+                        EditorGUILayout.HelpBox("The maze will be fully braid. Change the frequency to have a partially braid maze", MessageType.Warning, true);
+                    }
+                    else if (braidFrequency.floatValue == 0) {
+                        EditorGUILayout.HelpBox("The maze will NOT be braid at all. Please set the frequency to create partial/full braid", MessageType.Warning, true);
+                }
                 }
                 EditorGUILayout.EndVertical();
                 #endregion
 
-                #region Maze Name Component
+                #region Maze Name
                 EditorGUILayout.BeginVertical("Box");
                 GUIContent mazeNameContent = new GUIContent("Maze Name");
                 EditorGUILayout.PropertyField(serializedObject.FindProperty("mazeName"), mazeNameContent);
                 EditorGUILayout.EndVertical();
-            #endregion
+                #endregion
 
 
 
             EditorGUILayout.Space();
 
-            if (PrefabUtility.GetPrefabType(mazeGenerator.gameObject) != PrefabType.Prefab) {
+            if (PrefabUtility.GetPrefabAssetType(mazeGenerator.gameObject) != PrefabAssetType.Variant) {
                 if (mazeGenerator.wallPieces.Length > 0 && mazeGenerator.floorPieces.Length > 0 && hasAllRooms && hasAllWalls && hasAllFloors && hasAllWallDetails && hasAllOtherDetails) {
                     GUIContent generateMazeButtonContent = new GUIContent("Generate New Maze", "This button will destroy the current maze and generate a new one in its place.");
                     if (GUILayout.Button(generateMazeButtonContent)) {
                         DestroyOldMazeInEditor(mazeGenerator);
-                        if (mazeGenerator.allowEditorUndo) {
-                            Undo.RegisterCreatedObjectUndo(mazeGenerator.GenerateNewMaze(), "Generate New Maze");
-                        } else {
-                            mazeGenerator.GenerateNewMaze();
-                        }
+                        mazeGenerator.GenerateNewMaze();
                     }
                 } else {
                     EditorGUILayout.HelpBox("You are either missing wall/floor pieces or your plaza/detail arrays have null objects", MessageType.Error, true);
@@ -415,7 +422,7 @@ namespace ProjectMaze
 
                 EditorGUILayout.Space();
 
-                EditorGUILayout.HelpBox("The specific prefabs located in the plaza, floor/wall piece, and detail arrays can not currently be saved or loaded. Keep this in mind when using the saving/loading features", MessageType.Info, true);
+                EditorGUILayout.HelpBox("The specific prefabs located in the room, floor/wall piece, and detail arrays can not currently be saved or loaded. Keep this in mind when using the saving/loading features", MessageType.Info, true);
             }
 
             serializedObject.ApplyModifiedProperties();
@@ -442,8 +449,8 @@ namespace ProjectMaze
                 showWallPieces.boolValue = EditorGUILayout.Foldout(showWallPieces.boolValue, wallPiecesContent);
                 if (showWallPieces.boolValue) {
                     EditorGUI.indentLevel++;
-                    EditorGUILayout.BeginHorizontal(GUILayout.MaxWidth(Screen.width / 1.1f));
-                    GUIContent numberOfWallPiecesContent = new GUIContent("Number of Pieces", numberOfWallPiecesProperty.tooltip);
+                    EditorGUILayout.BeginHorizontal(GUILayout.MaxWidth(Screen.width / 1.35f)); //1.35f to align with with the 2nd game object. Unncecessary but makes it prettier
+                    GUIContent numberOfWallPiecesContent = new GUIContent("Number of Pieces:", numberOfWallPiecesProperty.tooltip);
                     EditorGUI.BeginDisabledGroup(true);
                     EditorGUILayout.PropertyField(numberOfWallPiecesProperty, numberOfWallPiecesContent);
                     EditorGUI.EndDisabledGroup();
@@ -516,8 +523,8 @@ namespace ProjectMaze
                 showWallPieces.boolValue = EditorGUILayout.Foldout(showWallPieces.boolValue, wallPiecesContent);
                 if (showWallPieces.boolValue) {
                     EditorGUI.indentLevel++;
-                    EditorGUILayout.BeginHorizontal(GUILayout.MaxWidth(Screen.width / 1.1f));
-                    GUIContent numberOfWallPiecesContent = new GUIContent("Number of Pieces", numberOfWallPiecesProperty.tooltip);
+                    EditorGUILayout.BeginHorizontal(GUILayout.MaxWidth(Screen.width / 1.35f)); //1.35f to align with with the 2nd game object. Unncecessary but makes it prettier
+                GUIContent numberOfWallPiecesContent = new GUIContent("Number of Pieces", numberOfWallPiecesProperty.tooltip);
                     EditorGUI.BeginDisabledGroup(true);
                     EditorGUILayout.PropertyField(numberOfWallPiecesProperty, numberOfWallPiecesContent);
                     EditorGUI.EndDisabledGroup();
@@ -590,7 +597,7 @@ namespace ProjectMaze
                 showFloorPieces.boolValue = EditorGUILayout.Foldout(showFloorPieces.boolValue, floorPiecesContent);
                 if (showFloorPieces.boolValue) {
                     EditorGUI.indentLevel++;
-                    EditorGUILayout.BeginHorizontal(GUILayout.MaxWidth(Screen.width / 1.1f));
+                    EditorGUILayout.BeginHorizontal(GUILayout.MaxWidth(Screen.width / 1.35f)); //1.35f to align with with the 2nd game object. Unncecessary but makes it prettier
                     GUIContent numberOfFloorPiecesContent = new GUIContent("Number of Pieces", numberOfFloorPiecesProperty.tooltip);
                     EditorGUI.BeginDisabledGroup(true);
                     EditorGUILayout.PropertyField(numberOfFloorPiecesProperty, numberOfFloorPiecesContent);
