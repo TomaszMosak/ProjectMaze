@@ -1106,7 +1106,7 @@ namespace ProjectMaze
         }
         #endregion
 
-        #region Delete OuterWalls -- TODO HERE ((START/END POINTER IN OUTER WALL))
+        #region Delete OuterWalls -- TODO HERE ((START/END POINTER IN OUTER WALL) + (Elite integrated with path size (if enough time))
         /// <summary>
         /// Erases pieces of the outer wall. Presumably to be used as entrances and exits.
         /// </summary>
@@ -1342,7 +1342,7 @@ namespace ProjectMaze
                                 } else {
                                     // we don't have any walls to delete here, so override the randomness
                                     if (randomColBottom.Count > 0 && randomColTop.Count > 0) {
-                                        goto case 1;
+                                        goto case 1; //go to the other case as we can't delete here
                                     } else {
                                         Debug.LogWarning("This is weird.");
                                         return;
@@ -1370,7 +1370,7 @@ namespace ProjectMaze
                                 } else {
                                     // we don't have any walls to delete here, so override the randomness
                                     if (randomRowLeft.Count > 0 && randomRowRight.Count > 0) {
-                                        goto case 0;
+                                        goto case 0; //go to the other case as we can't delete here
                                     } else {
                                         Debug.LogWarning("This is weird.");
                                         return;
@@ -1381,118 +1381,131 @@ namespace ProjectMaze
                     }
                     break;
 
-                    //TODO ------------ IF ENOUGH TIME DO A SOLVE TO ENSURE THAT PATH BETWEEN IS SHORT
+                 //TODO ------------ IF ENOUGH TIME DO A SOLVE TO ENSURE THAT PATH BETWEEN IS SHORT
                 case OutsideWallDeleteMode.elite:
                     // 0 is left wall
                     // 1 is top wall
                     // 2 is right wall
                     // 3 is bottom wall
+                    int jump = 0;
                     bool attempt = false;
                     bool firstPass = false;
                     int firstWall = -1;
-                    int randomGen = Random.Range(0, 1); //selects random side
+                    int randomGen = Random.Range(0,4); //selects random side
                         switch (randomGen) {
                             case 0:
-                                    while (!attempt || randomRowLeft.Count > 0) {
-                                        //finds a wall and deletes it from the list
-                                        int leftRow = randomRowLeft[randomRowLeft.Count - 1];
-                                        randomRowLeft.RemoveAt(randomRowLeft.Count - 1);
+                            do {
+                                //finds a wall and deletes it from the list
+                                int leftRow = randomRowLeft[randomRowLeft.Count - 1];
+                                randomRowLeft.RemoveAt(randomRowLeft.Count - 1);
 
-                                        // make sure this space is accessible
-                                        if (IsWall(mapToModify.map[(leftRow * mapToModify.mazeWidth) + 1])) {
-                                            leftRow++;
-                                        }
+                                // make sure this space is accessible
+                                if (IsWall(mapToModify.map[(leftRow * mapToModify.mazeWidth) + 1])) {
+                                    leftRow++;
+                                }
 
-                                        //we don't want walls right next to each other
-                                        randomColTop.Remove(leftRow + 1);
-                                        randomColTop.Remove(leftRow - 1);
-                                        
-                                        //ensure that there is a wall between the 2 points
-                                         if (firstWall != -1) {
-                                            attempt = eliteHelper(mapToModify, firstWall, leftRow);
-                                            Debug.Log(attempt);
-                                            if (attempt == true) {
-                                                mapToModify.map[(leftRow * mapToModify.mazeWidth) + 0] = MazeMap.TileState.brokenWall;
-                                                break; //we can break as we've got our 2 walls destroyed
-                                            }
-                                        }
-                                         //on first wall we can just delete it
-                                        if (!firstPass) {
-                                            mapToModify.map[(leftRow * mapToModify.mazeWidth) + 0] = MazeMap.TileState.brokenWall;
-                                            firstPass = true;
-                                            firstWall = leftRow;
-                                        }
+                                //we don't want walls right next to each other
+                                randomColTop.Remove(leftRow + 1);
+                                randomColTop.Remove(leftRow - 1);
+
+                                //ensure that there is a wall between the 2 points
+                                if (firstWall != -1) {
+                                    attempt = eliteHelper(mapToModify, firstWall, leftRow, 0); //cleaner to check for walls between the 2 points in a seperate function
+                                    if (attempt == true) {
+                                        mapToModify.map[(leftRow * mapToModify.mazeWidth) + 0] = MazeMap.TileState.brokenWall;
+                                        break; //we can break as we've got our 2 walls destroyed
                                     }
-                                break;
+                                }
+                                //on first wall we can just delete it
+                                if (!firstPass) {
+                                    mapToModify.map[(leftRow * mapToModify.mazeWidth) + 0] = MazeMap.TileState.brokenWall;
+                                    firstPass = true;
+                                    firstWall = leftRow;
+                                }
+                            } while (!attempt && randomRowLeft.Count > 0);
+                            break;
+
                             case 1:
-                                 while (!attempt || randomColTop.Count > 0) {
-                                    int topCol = randomColTop[randomColTop.Count - 1];
-                                    //Ensures that if this side is selected again that the deleted walls aren't next to each other
-                                    randomColTop.RemoveAt(randomColTop.Count - 1);
+                            do {
+                                int topCol = randomColTop[randomColTop.Count - 1];
+                                //Ensures that if this side is selected again that the deleted walls aren't next to each other
+                                randomColTop.RemoveAt(randomColTop.Count - 1);
 
-                                    //make sure this space is accessible
-                                    if (IsWall(mapToModify.map[((mapToModify.mazeLength - 2) * mapToModify.mazeWidth) + topCol])) {
-                                         topCol++;
-                                    }
-                                    randomColTop.Remove(topCol + 1);
-                                    randomColTop.Remove(topCol - 1);
+                                //make sure this space is accessible
+                                if (IsWall(mapToModify.map[((mapToModify.mazeLength - 2) * mapToModify.mazeWidth) + topCol])) {
+                                    topCol++;
+                                }
+                                randomColTop.Remove(topCol + 1);
+                                randomColTop.Remove(topCol - 1);
 
-                                    if (firstWall != -1) {
-                                    attempt = eliteHelper(mapToModify, firstWall, topCol);
-                                    Debug.Log(attempt);
-                                        if (attempt == true) {
-                                            mapToModify.map[((mapToModify.mazeLength - 1) * mapToModify.mazeWidth) + topCol] = MazeMap.TileState.brokenWall;
-                                            break; //we can break as we've got our 2 walls destroyed
-                                        }
-                                    }
-                                    if (!firstPass) {
+                                if (firstWall != -1) {
+                                    attempt = eliteHelper(mapToModify, firstWall, topCol, 1); //cleaner to check for walls between the 2 points in a seperate function
+                                    if (attempt == true) {
                                         mapToModify.map[((mapToModify.mazeLength - 1) * mapToModify.mazeWidth) + topCol] = MazeMap.TileState.brokenWall;
-                                        firstPass = true;
-                                        firstWall = topCol;
+                                        break; //we can break as we've got our 2 walls destroyed
                                     }
+                                }
+                                if (!firstPass) {
+                                    mapToModify.map[((mapToModify.mazeLength - 1) * mapToModify.mazeWidth) + topCol] = MazeMap.TileState.brokenWall;
+                                    firstPass = true;
+                                    firstWall = topCol;
+                                }
+                            } while (!attempt && randomColTop.Count > 0);
+                            break;
 
-                                 } 
-                           break;
                         case 2:
-                                if (randomRowRight.Count > 0) {
-                                    int rightRow = randomRowRight[randomRowRight.Count - 1];
-                                    firstWall = rightRow;
-                                    //Ensures that if this side is selected again that the deleted walls aren't next to each other
-                                    randomRowRight.RemoveAt(randomRowRight.Count - 1);
-                                    randomRowRight.Remove(rightRow + 1);
-                                    randomRowRight.Remove(rightRow - 1);
+                            do {
+                                int rightRow = randomRowRight[randomRowRight.Count - 1];
+                                randomRowRight.RemoveAt(randomRowRight.Count - 1);
 
-                                    // make sure this space is accessible
-                                    if (IsWall(mapToModify.map[(rightRow * mapToModify.mazeWidth) + mapToModify.mazeWidth - 2])) {
-                                        mapToModify.map[((rightRow - 1) * mapToModify.mazeWidth) + mapToModify.mazeWidth - 1] = MazeMap.TileState.brokenWall;
-                                    } else {
+                                if (IsWall(mapToModify.map[(rightRow * mapToModify.mazeWidth) + mapToModify.mazeWidth - 2])) {
+                                    rightRow--;
+                                }
+                                randomRowRight.Remove(rightRow + 1);
+                                randomRowRight.Remove(rightRow - 1);
+
+                                if (firstWall != -1) {
+                                    attempt = eliteHelper(mapToModify, firstWall, rightRow, 2); //cleaner to check for walls between the 2 points in a seperate function
+                                    if (attempt == true) {
                                         mapToModify.map[(rightRow * mapToModify.mazeWidth) + mapToModify.mazeWidth - 1] = MazeMap.TileState.brokenWall;
+                                        break;
                                     }
-                                } else {
-                             
                                 }
-                                break;
-                            case 3:
-                                if (randomColBottom.Count > 0) {
-                                    int bottomCol = randomColBottom[randomColBottom.Count - 1];
-                                    firstWall = bottomCol;
-                                    //Ensures that if this side is selected again that the deleted walls aren't next to each other
-                                    randomColBottom.RemoveAt(randomColBottom.Count - 1);
-                                    randomColBottom.Remove(bottomCol + 1);
-                                    randomColBottom.Remove(bottomCol - 1);
+                                if (!firstPass) {
+                                    mapToModify.map[(rightRow * mapToModify.mazeWidth) + mapToModify.mazeWidth - 1] = MazeMap.TileState.brokenWall;
+                                    firstPass = true;
+                                    firstWall = rightRow;
+                                }
+                            } while (randomRowRight.Count > 0 && !attempt);
+                            break;
 
-                                    // make sure this space is accessible
-                                    if (IsWall(mapToModify.map[(1 * mapToModify.mazeWidth) + bottomCol])) {
-                                        mapToModify.map[(0 * mapToModify.mazeWidth) + (bottomCol + 1)] = MazeMap.TileState.brokenWall;
-                                    } else {
-                                        mapToModify.map[(0 * mapToModify.mazeWidth) + bottomCol] = MazeMap.TileState.brokenWall;
-                                    }
-                                } else {
-                                  
+
+                        case 3:
+                            do {
+                                int bottomCol = randomColBottom[randomColBottom.Count - 1];
+                                randomColBottom.RemoveAt(randomColBottom.Count - 1);
+                                //Ensures that if this side is selected again that the deleted walls aren't next to each other
+                                if (IsWall(mapToModify.map[(1 * mapToModify.mazeWidth) + bottomCol])) {
+                                    bottomCol++;
                                 }
-                                break;
-                        }
-                    
+                                randomColBottom.Remove(bottomCol + 1);
+                                randomColBottom.Remove(bottomCol - 1);
+                                if (firstWall != -1) {
+                                    attempt = eliteHelper(mapToModify, firstWall, bottomCol, 3); //cleaner to check for walls between the 2 points in a seperate function
+                                    if (attempt == true) {
+                                        mapToModify.map[(0 * mapToModify.mazeWidth) + bottomCol] = MazeMap.TileState.brokenWall;
+                                        break;
+                                    }
+
+                                }
+                                if (!firstPass) {
+                                    mapToModify.map[(0 * mapToModify.mazeWidth) + bottomCol] = MazeMap.TileState.brokenWall;
+                                    firstPass = true;
+                                    firstWall = bottomCol;
+                                }
+                            } while (!attempt && randomColTop.Count > 0);
+                            break;
+                    }
                     break;
 
                 //NON RANDOM CASE
@@ -1506,41 +1519,52 @@ namespace ProjectMaze
 
             }
         }
-        // FIX ------------------------------------------------------------------------------------------------------------------------------- ONLY WORKS FOR THE LEFT SIDE
         /// <summary>
-        /// Ensures that there is a wall between the 2 entrances. Means that the user within the maze doesn't see the exit instantly
+        /// Ensures that there is a wall on the path between the 2 entrances. Means that the user within the maze doesn't see the exit instantly
         /// </summary>
         /// <param name="mapToModify"></param>
         /// <param name="first"></param>
         /// <param name="second"></param>
+        /// <param name="caseNo"></param>
         /// <returns>True if there is a wall, false otherwise</returns>
-        private bool eliteHelper(MazeMap mapToModify, int first, int second) {
-            if (first < second) {
+        private bool eliteHelper(MazeMap mapToModify, int first, int second, int caseNo) {
+            if (second < first) {
+                int temp = second;
+                second = first;
+                first = temp;
+            }
                 IEnumerable<int> numbers = Enumerable.Range(first, second);
-                Debug.Log(string.Format("Starting: {0} \nEnding: {1}", first, second));
                 foreach (var num in Enumerable.Range(first, (second - first) + 1)) {
                     if (num > 0) {
-                        if (IsWall(mapToModify.map[(num * mapToModify.mazeWidth) + 1])) {
-                            return true;
+                        switch (caseNo) {
+                        case 0:
+                            if (IsWall(mapToModify.map[(num * mapToModify.mazeWidth) + 1])) {
+                                return true;
+                            }
+                                break;
 
+                        case 1:
+                            if (IsWall(mapToModify.map[((mapToModify.mazeLength - 2) * mapToModify.mazeWidth) + num])) {
+                                return true;
+                            }
+                            break;
+
+                        case 2:
+                            if (IsWall(mapToModify.map[(num * mapToModify.mazeWidth) + mapToModify.mazeWidth - 2])) {
+                                return true;
+                            }
+                            break;
+
+                        case 3:
+                            if (IsWall(mapToModify.map[(1 * mapToModify.mazeWidth) + num])) {
+                                return true;
+                            }
+                            break;
                         }
                     } else {
-                        Debug.LogError(string.Format("Something went wrong at value: {0}\n using: {1}, {2}", num, first, second));
+                        Debug.LogError(string.Format("Something went wrong at tile: {0}\n between tiles: {1}, {2}", num, first, second));
                     }
                 }
-            } else {
-                IEnumerable<int> numbers = Enumerable.Range(second, first);
-                Debug.Log(string.Format("Starting: {0} \nEnding: {1}", second, first));
-                foreach (var num in Enumerable.Range(second, (first - second) + 1)) {
-                    if (num > 0) {
-                        if (IsWall(mapToModify.map[(num * mapToModify.mazeWidth) + 1])) {
-                            return true;
-                        }
-                    } else {
-                        Debug.LogError(string.Format("Something went wrong at value: {0}\n using: {1}, {2}", num, first, second));
-                    }
-                }
-            }
             return false;
         }
         #endregion
