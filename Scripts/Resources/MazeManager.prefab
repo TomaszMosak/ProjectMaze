@@ -52,8 +52,11 @@ MonoBehaviour:
   mazeLength: 21
   mazePosition: {x: 0, y: 0, z: 0}
   makeBraidMaze: 0
-  makeFloorExit: 0
+  braidFrequency: 1
+  makeExit: 0
   makeStart: 0
+  makeFloorExit: 0
+  makeFloorStart: 0
   makeUniqueTiles: 0
   uniqueTiles:
   - uniqueTileName: Water
@@ -113,7 +116,7 @@ MonoBehaviour:
       type: 3}
     wallHeight: 0.5
   floorPieces:
-  - floorPrefab: {fileID: 1994254046939066, guid: 2b99fe8d8c6b3664fb1f1884d544c62b,
+  - floorPrefab: {fileID: 1141756196039588, guid: d7698c69246c64044ab2a94628bf0291,
       type: 3}
     floorThickness: 1
   defaultWallZPlane: 0

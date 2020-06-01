@@ -11,6 +11,7 @@ namespace ProjectMaze
             /// </summary>
             /// <param name="menuCommand"></param>
             [MenuItem("GameObject/ProjectMaze/Add Maze Generator")]
+
             static void CreateMazeGenerator() {
                 GameObject mazeGenerator = (GameObject)Instantiate(Resources.Load("MazeManager"));
                 mazeGenerator.name = "MazeManager(" + FindObjectsOfType<GenMaze>().Length + ")";
@@ -18,245 +19,161 @@ namespace ProjectMaze
                 Selection.activeObject = mazeGenerator;
             }
 
-            public override void OnInspectorGUI() {
-                bool hasAllRooms = true;
-                bool hasAllWalls = true;
-                bool hasAllFloors = true;
-                bool hasAllWallDetails = true;
-                bool hasAllOtherDetails = true;
-                bool hasAllTwoDimensionalDetails = true;
+        public override void OnInspectorGUI() {
+            bool hasAllRooms = true;
+            bool hasAllWalls = true;
+            bool hasAllFloors = true;
+            bool hasAllWallDetails = true;
+            bool hasAllOtherDetails = true;
+            bool hasAllTwoDimensionalDetails = true;
 
-                serializedObject.Update();
+            serializedObject.Update();
 
-                GenMaze mazeGenerator = (GenMaze)target;
+            GenMaze mazeGenerator = (GenMaze)target;
 
-                EditorGUILayout.Space();
+            EditorGUILayout.Space();
 
-                #region General Settings Stuff
-                EditorGUILayout.BeginVertical("Box");
-                EditorGUILayout.PropertyField(serializedObject.FindProperty("mazeDimension"));
+            #region General Settings Stuff
+            EditorGUILayout.BeginVertical("Box");
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("mazeDimension"));
+            EditorGUILayout.EndVertical();
+
+            EditorGUILayout.BeginVertical("Box");
+            GUIContent useSeedValueContent = new GUIContent("Custom Seed Value?");
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("useSeedValue"), useSeedValueContent);
+            if (mazeGenerator.useSeedValue) {
+                EditorGUILayout.PropertyField(serializedObject.FindProperty("seedValue"));
+            } else {
+                EditorGUI.BeginDisabledGroup(true);
+                EditorGUILayout.PropertyField(serializedObject.FindProperty("seedValue"));
+                EditorGUI.EndDisabledGroup();
+            }
+            EditorGUILayout.EndVertical();
+
+            EditorGUILayout.BeginVertical("Box");
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("mazeWidth"));
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("mazeLength"));
+
+                EditorGUILayout.PropertyField(serializedObject.FindProperty("defaultWallHeight"));
+                EditorGUILayout.PropertyField(serializedObject.FindProperty("defaultFloorThickness"));
                 EditorGUILayout.EndVertical();
 
-                EditorGUILayout.BeginVertical("Box");
-                EditorGUILayout.PropertyField(serializedObject.FindProperty("showDimensionsGizmo"));
-                if (mazeGenerator.showDimensionsGizmo) {
-                    EditorGUILayout.PropertyField(serializedObject.FindProperty("dimensionsGizmoColour"));
+                EditorGUILayout.HelpBox("Note that every wall piece, wall detail, floor piece, and other detail should have the pivot point oriented as follows: The pivot point should be centered, the y-axis should be pointing upwards, and both the z/x axes should be perpendicular to two surfaces and parallel to two others (basically the pivot should be oriented the same way as Unity's primitive objects). Also note that in the case of wall details, the object will be oriented so that its z-axis points out from the wall when it is placed.", MessageType.Info, true);
+            
+            #endregion
+
+            #region Wall Piece Stuff
+            EditorGUILayout.BeginVertical("Box");
+            SerializedProperty wallPiecesProperty;
+            //Normal Wall Pieces
+            wallPiecesProperty = serializedObject.FindProperty("wallPieces");
+            
+            GUIContent wallPiecesContent = new GUIContent(wallPiecesProperty.displayName, wallPiecesProperty.tooltip);
+            SerializedProperty numberOfWallPiecesProperty = serializedObject.FindProperty("numberOfWallPieces");
+            SerializedProperty showWallPieces = serializedObject.FindProperty("showWallPieces");
+            DisplayWallsFormatted(wallPiecesContent, showWallPieces, wallPiecesProperty, numberOfWallPiecesProperty);
+                foreach (WallPiece3D wallPiece in mazeGenerator.wallPieces) {
+                    if (!wallPiece.wallPrefab) {
+                        hasAllWalls = false;
+                        break;
+                    }
                 }
-                EditorGUILayout.EndVertical();
+            
 
-                EditorGUILayout.BeginVertical("Box");
-                GUIContent useSeedValueContent = new GUIContent("Custom Seed Value?");
-                EditorGUILayout.PropertyField(serializedObject.FindProperty("useSeedValue"), useSeedValueContent);
-                if (mazeGenerator.useSeedValue) {
-                    EditorGUILayout.PropertyField(serializedObject.FindProperty("seedValue"));
-                } else {
-                    EditorGUI.BeginDisabledGroup(true);
-                    EditorGUILayout.PropertyField(serializedObject.FindProperty("seedValue"));
-                    EditorGUI.EndDisabledGroup();
-                }
-                EditorGUILayout.EndVertical();
-
-                EditorGUILayout.BeginVertical("Box");
-                EditorGUILayout.PropertyField(serializedObject.FindProperty("mazeWidth"));
-                EditorGUILayout.PropertyField(serializedObject.FindProperty("mazeLength"));
-                EditorGUILayout.PropertyField(serializedObject.FindProperty("mazePosition"));
-                EditorGUILayout.PropertyField(serializedObject.FindProperty("mazeTileWidthAndLength"));
-
-                if (mazeGenerator.mazeDimension == GenMaze.MazeDimension.TwoDimensional) {
-                    EditorGUILayout.PropertyField(serializedObject.FindProperty("defaultWallZPlane"));
-                    EditorGUILayout.PropertyField(serializedObject.FindProperty("floorZPlane"));
-                } else {
-                    EditorGUILayout.PropertyField(serializedObject.FindProperty("defaultWallHeight"));
-                    EditorGUILayout.PropertyField(serializedObject.FindProperty("defaultFloorThickness"));
-                }
-                EditorGUILayout.EndVertical();
-
-                if (mazeGenerator.mazeDimension == GenMaze.MazeDimension.TwoDimensional) {
-                    EditorGUILayout.HelpBox("Note that every wall piece, floor piece, and detail prefab should have the pivot point in its center with the axes oriented the same as the world axes", MessageType.Info, true);
-
-                } else {
-                    EditorGUILayout.HelpBox("Note that every wall piece, wall detail, floor piece, and other detail should have the pivot point oriented as follows: The pivot point should be centered, the y-axis should be pointing upwards, and both the z/x axes should be perpendicular to two surfaces and parallel to two others (basically the pivot should be oriented the same way as Unity's primitive objects). Also note that in the case of wall details, the object will be oriented so that its z-axis points out from the wall when it is placed.", MessageType.Info, true);
-                }
-                #endregion
-
-                #region Wall Piece Stuff
-                EditorGUILayout.BeginVertical("Box");
-                SerializedProperty wallPiecesProperty;
-                //Normal Wall Pieces
-                if (mazeGenerator.mazeDimension == GenMaze.MazeDimension.TwoDimensional) {
-                    wallPiecesProperty = serializedObject.FindProperty("wallPieces2D");
-                } else {
-                    wallPiecesProperty = serializedObject.FindProperty("wallPieces");
-                }
-                GUIContent wallPiecesContent = new GUIContent(wallPiecesProperty.displayName, wallPiecesProperty.tooltip);
-                SerializedProperty numberOfWallPiecesProperty = serializedObject.FindProperty("numberOfWallPieces");
-                SerializedProperty showWallPieces = serializedObject.FindProperty("showWallPieces");
-                if (mazeGenerator.mazeDimension == GenMaze.MazeDimension.TwoDimensional) {
-                    DisplayWallsFormatted2D(wallPiecesContent, showWallPieces, wallPiecesProperty, numberOfWallPiecesProperty);
-                    foreach (WallPiece2D wallPiece in mazeGenerator.wallPieces2D) {
+            //Corner Wall Pieces
+            SerializedProperty differentCornersProperty = serializedObject.FindProperty("differentCorners");
+            EditorGUILayout.PropertyField(differentCornersProperty);
+            if (differentCornersProperty.boolValue) {
+                wallPiecesProperty = serializedObject.FindProperty("cornerWallPieces");
+                
+                wallPiecesContent = new GUIContent(wallPiecesProperty.displayName, wallPiecesProperty.tooltip);
+                numberOfWallPiecesProperty = serializedObject.FindProperty("numberOfCornerWallPieces");
+                showWallPieces = serializedObject.FindProperty("showCornerWallPieces");
+                DisplayWallsFormatted(wallPiecesContent, showWallPieces, wallPiecesProperty, numberOfWallPiecesProperty);
+                    foreach (WallPiece3D wallPiece in mazeGenerator.cornerWallPieces) {
                         if (!wallPiece.wallPrefab) {
                             hasAllWalls = false;
                             break;
                         }
                     }
-                } else {
-                    DisplayWallsFormatted(wallPiecesContent, showWallPieces, wallPiecesProperty, numberOfWallPiecesProperty);
-                    foreach (WallPiece3D wallPiece in mazeGenerator.wallPieces) {
+            }
+
+            //End Wall Pieces
+            SerializedProperty differentEndsProperty = serializedObject.FindProperty("differentEnds");
+            EditorGUILayout.PropertyField(differentEndsProperty);
+            if (differentEndsProperty.boolValue) {
+                wallPiecesProperty = serializedObject.FindProperty("endWallPieces");
+                
+                wallPiecesContent = new GUIContent(wallPiecesProperty.displayName, wallPiecesProperty.tooltip);
+                numberOfWallPiecesProperty = serializedObject.FindProperty("numberOfEndWallPieces");
+                showWallPieces = serializedObject.FindProperty("showEndWallPieces");
+                DisplayWallsFormatted(wallPiecesContent, showWallPieces, wallPiecesProperty, numberOfWallPiecesProperty);
+                    foreach (WallPiece3D wallPiece in mazeGenerator.endWallPieces) {
                         if (!wallPiece.wallPrefab) {
                             hasAllWalls = false;
                             break;
                         }
                     }
-                }
+                
+            }
 
-                //Corner Wall Pieces
-                SerializedProperty differentCornersProperty = serializedObject.FindProperty("differentCorners");
-                EditorGUILayout.PropertyField(differentCornersProperty);
-                if (differentCornersProperty.boolValue) {
-                    if (mazeGenerator.mazeDimension == GenMaze.MazeDimension.TwoDimensional) {
-                        wallPiecesProperty = serializedObject.FindProperty("cornerWallPieces2D");
-                    } else {
-                        wallPiecesProperty = serializedObject.FindProperty("cornerWallPieces");
-                    }
-                    wallPiecesContent = new GUIContent(wallPiecesProperty.displayName, wallPiecesProperty.tooltip);
-                    numberOfWallPiecesProperty = serializedObject.FindProperty("numberOfCornerWallPieces");
-                    showWallPieces = serializedObject.FindProperty("showCornerWallPieces");
-                    if (mazeGenerator.mazeDimension == GenMaze.MazeDimension.TwoDimensional) {
-                        DisplayWallsFormatted2D(wallPiecesContent, showWallPieces, wallPiecesProperty, numberOfWallPiecesProperty);
-                        foreach (WallPiece2D wallPiece in mazeGenerator.cornerWallPieces2D) {
-                            if (!wallPiece.wallPrefab) {
-                                hasAllWalls = false;
-                                break;
-                            }
-                        }
-                    } else {
-                        DisplayWallsFormatted(wallPiecesContent, showWallPieces, wallPiecesProperty, numberOfWallPiecesProperty);
-                        foreach (WallPiece3D wallPiece in mazeGenerator.cornerWallPieces) {
-                            if (!wallPiece.wallPrefab) {
-                                hasAllWalls = false;
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                //End Wall Pieces
-                SerializedProperty differentEndsProperty = serializedObject.FindProperty("differentEnds");
-                EditorGUILayout.PropertyField(differentEndsProperty);
-                if (differentEndsProperty.boolValue) {
-                    if (mazeGenerator.mazeDimension == GenMaze.MazeDimension.TwoDimensional) {
-                        wallPiecesProperty = serializedObject.FindProperty("endWallPieces2D");
-                    } else {
-                        wallPiecesProperty = serializedObject.FindProperty("endWallPieces");
-                    }
-                    wallPiecesContent = new GUIContent(wallPiecesProperty.displayName, wallPiecesProperty.tooltip);
-                    numberOfWallPiecesProperty = serializedObject.FindProperty("numberOfEndWallPieces");
-                    showWallPieces = serializedObject.FindProperty("showEndWallPieces");
-                    if (mazeGenerator.mazeDimension == GenMaze.MazeDimension.TwoDimensional) {
-                        DisplayWallsFormatted2D(wallPiecesContent, showWallPieces, wallPiecesProperty, numberOfWallPiecesProperty);
-                        foreach (WallPiece2D wallPiece in mazeGenerator.endWallPieces2D) {
-                            if (!wallPiece.wallPrefab) {
-                                hasAllWalls = false;
-                                break;
-                            }
-                        }
-                    } else {
-                        DisplayWallsFormatted(wallPiecesContent, showWallPieces, wallPiecesProperty, numberOfWallPiecesProperty);
-                        foreach (WallPiece3D wallPiece in mazeGenerator.endWallPieces) {
-                            if (!wallPiece.wallPrefab) {
-                                hasAllWalls = false;
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                if (!hasAllWalls) {
-                    EditorGUILayout.HelpBox("You need to have all wall pieces filled in to generate or load a maze!", MessageType.Warning, true);
-                }
-                EditorGUILayout.EndVertical();
+            if (!hasAllWalls) {
+                EditorGUILayout.HelpBox("You need to have all wall pieces filled in to generate or load a maze!", MessageType.Warning, true);
+            }
+            EditorGUILayout.EndVertical();
             #endregion
 
             #region Floor Piece Stuff
             SerializedProperty floorPiecesProperty;
-            if (mazeGenerator.mazeDimension == GenMaze.MazeDimension.TwoDimensional) {
-                floorPiecesProperty = serializedObject.FindProperty("floorPieces2D");
-            } else {
-                floorPiecesProperty = serializedObject.FindProperty("floorPieces");
-            }
+            floorPiecesProperty = serializedObject.FindProperty("floorPieces");
             GUIContent floorPiecesContent = new GUIContent(floorPiecesProperty.displayName, floorPiecesProperty.tooltip);
             SerializedProperty numberOfFloorPiecesProperty = serializedObject.FindProperty("numberOfFloorPieces");
             SerializedProperty showFloorPieces = serializedObject.FindProperty("showFloorPieces");
-            if (mazeGenerator.mazeDimension == GenMaze.MazeDimension.TwoDimensional) {
-                DisplayGameObjectArrayFormatted(floorPiecesContent, showFloorPieces, floorPiecesProperty, numberOfFloorPiecesProperty);
-                foreach (GameObject floorPiece in mazeGenerator.floorPieces2D) {
-                    if (!floorPiece) {
-                        hasAllFloors = false;
-                        break;
-                    }
-                }
-            } else {
-                DisplayFloorsFormatted(floorPiecesContent, showFloorPieces, floorPiecesProperty, numberOfFloorPiecesProperty);
+            DisplayFloorsFormatted(floorPiecesContent, showFloorPieces, floorPiecesProperty, numberOfFloorPiecesProperty);
                 foreach (FloorPiece floorPiece in mazeGenerator.floorPieces) {
                     if (!floorPiece.floorPrefab) {
                         hasAllFloors = false;
                         break;
                     }
                 }
-            }
-            if (!hasAllFloors) {
+                if (!hasAllFloors) {
                 EditorGUILayout.HelpBox("You need to have all floor pieces filled in to generate or load a maze!", MessageType.Warning, true);
             }
             #endregion
 
             #region Room Stuff
             EditorGUILayout.BeginVertical("Box");
-                GUIContent makeRoomsContent = new GUIContent("Make Rooms?");
-                EditorGUILayout.PropertyField(serializedObject.FindProperty("makeRooms"), makeRoomsContent);
+            GUIContent makeRoomsContent = new GUIContent("Make Rooms?");
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("makeRooms"), makeRoomsContent);
 
-                if (mazeGenerator.makeRooms) {
-                    EditorGUI.indentLevel++;
-                    EditorGUILayout.PropertyField(serializedObject.FindProperty("numberOfRooms"));
-                    EditorGUILayout.PropertyField(serializedObject.FindProperty("roomPlacementAttempts"));
-                    EditorGUI.indentLevel++;
-                    EditorGUILayout.PropertyField(serializedObject.FindProperty("rooms"), true);
-                    EditorGUI.indentLevel -= 2;
+            if (mazeGenerator.makeRooms) {
+                EditorGUI.indentLevel++;
+                EditorGUILayout.PropertyField(serializedObject.FindProperty("numberOfRooms"));
+                EditorGUILayout.PropertyField(serializedObject.FindProperty("roomPlacementAttempts"));
+                EditorGUI.indentLevel++;
+                EditorGUILayout.PropertyField(serializedObject.FindProperty("rooms"), true);
+                EditorGUI.indentLevel -= 2;
 
-                    foreach (RoomPrefab room in mazeGenerator.rooms) {
-                        if (!room) {
-                            hasAllRooms = false;
-                        }
-                    }
-                    if (!hasAllRooms) {
-                        EditorGUILayout.HelpBox("You need to have all rooms filled in to generate a maze!", MessageType.Warning, true);
+                foreach (RoomPrefab room in mazeGenerator.rooms) {
+                    if (!room) {
+                        hasAllRooms = false;
                     }
                 }
-                EditorGUILayout.EndVertical();
-                #endregion
+                if (!hasAllRooms) {
+                    EditorGUILayout.HelpBox("You need to have all rooms filled in to generate a maze!", MessageType.Warning, true);
+                }
+            }
+            EditorGUILayout.EndVertical();
+            #endregion
 
-                #region Detail Stuff
-                EditorGUILayout.BeginVertical("Box");
-                GUIContent addDetailsContent = new GUIContent("Add Details?");
-                EditorGUILayout.PropertyField(serializedObject.FindProperty("addDetails"), addDetailsContent);
+            #region Detail Stuff
+            EditorGUILayout.BeginVertical("Box");
+            GUIContent addDetailsContent = new GUIContent("Add Details?");
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("addDetails"), addDetailsContent);
             if (mazeGenerator.addDetails) {
                 EditorGUILayout.HelpBox("It is important that the proper values are entered for each detail you want scattered throughout the maze. If the following are not filled out correctly, you will end up with floating, clipping, or misaligned objects. Read the tooltips for more detailed information.", MessageType.Info, true);
                 EditorGUI.indentLevel++;
-
-                if (mazeGenerator.mazeDimension == GenMaze.MazeDimension.TwoDimensional) {
-                    EditorGUILayout.BeginVertical("Box");
-                    EditorGUILayout.PropertyField(serializedObject.FindProperty("twoDimensionalDetails"), true);
-                    foreach (TwoDimensionalDetail twoDimensionalDetail in mazeGenerator.twoDimensionalDetails) {
-                        if (!twoDimensionalDetail.detailPrefab) {
-                            hasAllTwoDimensionalDetails = false;
-                            break;
-                        }
-                    }
-                    if (!hasAllTwoDimensionalDetails) {
-                        EditorGUILayout.HelpBox("You need to have all two dimensional detail prefabs filled in to generate a maze!", MessageType.Warning, true);
-                    }
-                    EditorGUILayout.EndVertical();
-                } else {
-                    EditorGUILayout.BeginVertical("Box");
+                EditorGUILayout.BeginVertical("Box");
                     EditorGUILayout.PropertyField(serializedObject.FindProperty("wallDetails"), true);
                     foreach (WallDetail wallDetail in mazeGenerator.wallDetails) {
                         if (!wallDetail.detailPrefab) {
@@ -281,84 +198,12 @@ namespace ProjectMaze
                         EditorGUILayout.HelpBox("You need to have all other detail prefabs filled in to generate a maze!", MessageType.Warning, true);
                     }
                     EditorGUILayout.EndVertical();
-                    }
                     EditorGUI.indentLevel--;
-                }
-                EditorGUILayout.EndVertical();
-                #endregion
-
-                #region Floor Exit/Start Stuff
-                EditorGUILayout.BeginVertical("Box");
-                SerializedProperty makeFloorExitProperty = serializedObject.FindProperty("makeFloorExit");
-                GUIContent makeFloorExitContent = new GUIContent("Make Floor Exit?", makeFloorExitProperty.tooltip);
-                EditorGUILayout.PropertyField(makeFloorExitProperty, makeFloorExitContent);
-                if (makeFloorExitProperty.boolValue) {
-                    EditorGUI.indentLevel++;
-                    EditorGUILayout.PropertyField(serializedObject.FindProperty("exitType"));
-                    EditorGUI.indentLevel--;
-                    SerializedProperty exitPiecesProperty = serializedObject.FindProperty("exitPieces");
-                    GUIContent exitPiecesContent = new GUIContent("Exit Pieces", exitPiecesProperty.tooltip);
-                    SerializedProperty numberOfExitPiecesProperty = serializedObject.FindProperty("numberOfExitPieces");
-                    SerializedProperty showExitPiecesProperty = serializedObject.FindProperty("showExitPieces");
-                    DisplayGameObjectArrayFormatted(exitPiecesContent, showExitPiecesProperty, exitPiecesProperty, numberOfExitPiecesProperty);
-                }
-                EditorGUILayout.EndVertical();
-
-                EditorGUILayout.BeginVertical("Box");
-                SerializedProperty makeFloorStartProperty = serializedObject.FindProperty("makeFloorStart");
-                GUIContent makeFloorStartContent = new GUIContent("Make Floor Start?", makeFloorExitProperty.tooltip);
-                EditorGUILayout.PropertyField(makeFloorStartProperty, makeFloorStartContent);
-                if (makeFloorStartProperty.boolValue) {
-                    EditorGUI.indentLevel++;
-                    EditorGUILayout.PropertyField(serializedObject.FindProperty("startType"));
-                    EditorGUI.indentLevel--;
-                    SerializedProperty startPiecesProperty = serializedObject.FindProperty("startPieces");
-                    GUIContent startPiecesContent = new GUIContent("Start Pieces", startPiecesProperty.tooltip);
-                    SerializedProperty numberOfStartPiecesProperty = serializedObject.FindProperty("numberOfStartPieces");
-                    SerializedProperty showStartPiecesProperty = serializedObject.FindProperty("showStartPieces");
-                    DisplayGameObjectArrayFormatted(startPiecesContent, showStartPiecesProperty, startPiecesProperty, numberOfStartPiecesProperty);
-                }
-                EditorGUILayout.EndVertical();
-                #endregion
-
-                #region Outer Wall Deletion Stuff
-                EditorGUILayout.BeginVertical("Box");
-                SerializedProperty deleteOutsideWallsProperty = serializedObject.FindProperty("deleteOutsideWalls");
-                GUIContent deleteOutsideWallContent = new GUIContent("Delete Outside Wall Pieces?", deleteOutsideWallsProperty.tooltip);
-                EditorGUILayout.PropertyField(deleteOutsideWallsProperty, deleteOutsideWallContent);
-                SerializedProperty wallEnum = serializedObject.FindProperty("outsideWallDeleteMode");
-            if (deleteOutsideWallsProperty.boolValue) {
-                EditorGUI.indentLevel++;
-                EditorGUILayout.PropertyField(wallEnum);
-                EditorGUI.indentLevel--;
-                if (wallEnum.intValue == (int)GenMaze.OutsideWallDeleteMode.classic || wallEnum.intValue == (int)GenMaze.OutsideWallDeleteMode.elite) {
-                    EditorGUILayout.HelpBox("This option will delete EXACTLY 2 wall Pieces", MessageType.Info, true);
-                } else {
-                    SerializedProperty outsideWallPiecesToDeleteProperty = serializedObject.FindProperty("outsideWallPiecesToDelete");
-                    GUIContent outsideWallPiecesToDeleteContent = new GUIContent("Number of Pieces to Delete", outsideWallPiecesToDeleteProperty.tooltip);
-                    EditorGUILayout.PropertyField(outsideWallPiecesToDeleteProperty, outsideWallPiecesToDeleteContent);
-                }
             }
-                EditorGUILayout.EndVertical();
-                #endregion
+            EditorGUILayout.EndVertical();
+            #endregion
 
-
-                #region Unique Tile Stuff
-                EditorGUILayout.BeginVertical("Box");
-                SerializedProperty makeUniqueTilesProperty = serializedObject.FindProperty("makeUniqueTiles");
-                GUIContent makeUniqueTilesContent = new GUIContent("Make Unique Tiles?", makeUniqueTilesProperty.tooltip);
-                EditorGUILayout.PropertyField(makeUniqueTilesProperty, makeUniqueTilesContent);
-                if (makeUniqueTilesProperty.boolValue) {
-                    EditorGUI.indentLevel++;
-                    EditorGUILayout.BeginVertical("Box");
-                    EditorGUILayout.PropertyField(serializedObject.FindProperty("uniqueTiles"), true);
-                    EditorGUILayout.EndVertical();
-                    EditorGUI.indentLevel--;
-                }
-                EditorGUILayout.EndVertical();
-                #endregion
-
-                #region Braid Maze Stuff
+            #region Braid Maze Stuff
                 EditorGUILayout.BeginVertical("Box");
                 GUIContent makeBraidMazeContent = new GUIContent("Make Braid Maze?");
                 SerializedProperty makeBraidMazeProperty = serializedObject.FindProperty("makeBraidMaze");
@@ -377,7 +222,7 @@ namespace ProjectMaze
                 EditorGUILayout.EndVertical();
                 #endregion
 
-                #region Maze Name
+            #region Maze Name
                 EditorGUILayout.BeginVertical("Box");
                 GUIContent mazeNameContent = new GUIContent("Maze Name");
                 EditorGUILayout.PropertyField(serializedObject.FindProperty("mazeName"), mazeNameContent);
@@ -400,25 +245,6 @@ namespace ProjectMaze
                 }
 
                 EditorGUILayout.Space();
-
-                GUIContent saveMazeButtonContent = new GUIContent("Save Generator Settings", "This button will allow you to save a ." + GenMaze.MAZE_SETTINGS_EXTENSION + " file with the current generation settings. Note that you cannot save/load any of the prefabs in wall/floor pieces or the detail arrays");
-                if (GUILayout.Button(saveMazeButtonContent)) {
-                    string savePath = EditorUtility.SaveFilePanel("Save Generator Settings As", "Assets/UmbraEvolution/MazeMagician/SavedGeneratorSettings", "NewSettings", GenMaze.MAZE_SETTINGS_EXTENSION);
-                    if (!string.IsNullOrEmpty(savePath)) {
-                        mazeGenerator.SaveGeneratorSettings(savePath);
-                    }
-                }
-
-                EditorGUILayout.Space();
-
-                GUIContent loadMazeButtonContent = new GUIContent("Load Generator Settings", "This button will allow you to browse for a ." + GenMaze.MAZE_SETTINGS_EXTENSION + " file to load a previously saved set of settings. Note that you cannot save/load any of the prefabs in wall/floor pieces or the detail arrays");
-                if (GUILayout.Button(loadMazeButtonContent)) {
-
-                    string loadPath = EditorUtility.OpenFilePanel("Select Maze to Load", "Assets/UmbraEvolution/MazeMagician/SavedGeneratorSettings", GenMaze.MAZE_SETTINGS_EXTENSION);
-                    if (!string.IsNullOrEmpty(loadPath)) {
-                        mazeGenerator.LoadGeneratorSettings(loadPath);
-                    }
-                }
 
                 EditorGUILayout.Space();
 
